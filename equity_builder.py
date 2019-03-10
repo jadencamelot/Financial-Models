@@ -31,33 +31,47 @@ Todo:
 
 class Simulation():
 	"""
-	Set fixed parameters here.
+	Default parameters (can be overridden).
+
+	deposit (float)
+		Initial deposit.
+
+	lvr (float)
+		Can be zero.
+	
+	savings_per_month (float)
+		Total cashflow available for investment.
+	
+	loan_term (int)
+		Loan term in years.
 	"""
 	annual_growth = 0.07
 	annual_yield = 0.025
 	marginal_tax = 0.37
 	interest_rate = 0.0505
+	deposit = 5000
+	lvr = 0.5
+	savings_per_month = 300
+	loan_term = 10
 
-	def __init__(self, deposit=10000, lvr=0.5, savings_per_month=300, loan_term=10):
+	def __init__(self, **kwargs):
 		"""
-		Set per-simulation parameters here.
-
-		deposit (float)
-			Initial deposit.
-
-		lvr (float)
-			Can be zero.
-		
-		savings_per_month (float)
-			Total cashflow available for investment.
-		
-		loan_term (int)
-			Loan term in years.
+		Per-simulation parameters override defaults.
 		"""
-		self.deposit = deposit
-		self.lvr = lvr
-		self.savings_per_month = savings_per_month
-		self.loan_term = loan_term
+		acceptable_keys = (
+			"annual_growth",
+			"annual_yield",
+			"marginal_tax",
+			"interest_rate",
+			"deposit",
+			"lvr",
+			"savings_per_month",
+			"loan_term")
+
+		for k in acceptable_keys:
+			if k in kwargs.keys():
+				self.__setattr__(k, kwargs[k])
+
 		self._initial_setup()
 
 	def _initial_setup(self):
@@ -160,29 +174,40 @@ class Simulation():
 				sep="\n"
 			)
 
-if __name__ == '__main__':
-	# Base case with zero leverage (aka no loan at all)
-	base_case = Simulation(deposit=10000, lvr=0.00, savings_per_month=300)
+def example_simulation():
+	series = []
+
+	# Set parameters for all cases
+	Simulation.deposit = 20000
+	Simulation.savings_per_month = 600
+	Simulation.loan_term = 10
+
+	# Run a base case with zero leverage (aka no loan at all)
+	base_case = Simulation(lvr=0.00, savings_per_month=300)
 	base_case.run(10)
 	base_result = base_case.portfolio
 
 	print(f"Baseline: ${base_result:,.0f}\n")
 
-	series = []
-
 	# Increasing LVR with same loan term
-	series.append(Simulation(deposit=10000, lvr=0.33, savings_per_month=300, loan_term=10))
-	series.append(Simulation(deposit=10000, lvr=0.50, savings_per_month=300, loan_term=10))
-	series.append(Simulation(deposit=10000, lvr=0.66, savings_per_month=300, loan_term=10))
-	series.append(Simulation(deposit=10000, lvr=0.75, savings_per_month=300, loan_term=10))
+	series.append(Simulation(lvr=0.33))
+	series.append(Simulation(lvr=0.50))
+	series.append(Simulation(lvr=0.66))
+	series.append(Simulation(lvr=0.75))
 
 	# Longer loan terms
-	series.append(Simulation(deposit=10000, lvr=0.50, savings_per_month=300, loan_term=15))
-	series.append(Simulation(deposit=10000, lvr=0.66, savings_per_month=300, loan_term=15))
+	series.append(Simulation(lvr=0.50, loan_term=15))
+	series.append(Simulation(lvr=0.66, loan_term=15))
 
+	# Run simulations
 	for i, s in enumerate(series):
 		s.run(10, "hlm", 0)
+
 		name = f"Series {string.ascii_uppercase[i]}"
 		result = s.portfolio - s.loan_balance
 		performance = (result * 100 / base_result) - 100
+
 		print(f"{name}: ${result:,.0f} = outperformed baseline by {performance:.2f}% ({s.lvr*100:.0f}% LVR)")
+
+if __name__ == '__main__':
+	example_simulation()
