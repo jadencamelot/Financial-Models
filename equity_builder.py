@@ -1,7 +1,4 @@
-import numpy as np
-import string
-
-YEARS = 12
+#!/usr/bin/env python3
 
 """
 NAB Equity Builder simulation tool
@@ -28,6 +25,11 @@ Todo:
 	- Make a nice CLI (if I can be bothered)
 	- Improve docs to clarify a few things
 """
+
+import numpy as np
+import string
+
+YEARS = 12
 
 class Simulation():
 	"""
@@ -113,15 +115,15 @@ class Simulation():
 		return self
 
 	def _iterate_slm(self, period):
-		principal_repayment = self.loan_balance / self.loan_term / 12
-		interest_repayment = self.loan_balance * self.interest_rate / 12
+		principal_repayment = self.loan_balance / self.loan_term / YEARS
+		interest_repayment = self.loan_balance * self.interest_rate / YEARS
 
 		self._iterate(principal_repayment, interest_repayment, period)
 
 	def _iterate_hlm(self, period):
-		rate = self.interest_rate / 12
-		ppmt = -np.ppmt(rate, period, self.loan_term * 12, self.original_loan_balance)
-		ipmt = -np.ipmt(rate, period, self.loan_term * 12, self.original_loan_balance)
+		rate = self.interest_rate / YEARS
+		ppmt = -np.ppmt(rate, period, self.loan_term * YEARS, self.original_loan_balance)
+		ipmt = -np.ipmt(rate, period, self.loan_term * YEARS, self.original_loan_balance)
 		# fmt = "{0:3d} {1:8,.2f} {2:8.2f} {3:8.2f}"
 		# print(fmt.format(period, ppmt, ipmt, self.loan_balance))
 
@@ -129,7 +131,7 @@ class Simulation():
 
 	def _iterate(self, principal_repayment, interest_repayment, period):
 		# Calculate divs
-		dividends = self.portfolio * self.annual_yield / 12
+		dividends = self.portfolio * self.annual_yield / YEARS
 
 		# Handle periods after end of loan		
 		if self.loan_balance <= 0:
@@ -141,7 +143,7 @@ class Simulation():
 			principal_repayment = max(self.loan_balance, 0)
 
 		# Update portfolio
-		self.portfolio *= 1 + (self.annual_growth / 12)
+		self.portfolio *= 1 + (self.annual_growth / YEARS)
 		self.loan_balance -= principal_repayment
 
 		# Handle tax (including negative gearing)
