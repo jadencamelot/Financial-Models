@@ -55,6 +55,7 @@ class Simulation():
 	lvr = 0.5
 	savings_per_month = 300
 	loan_term = 10
+	method = "slm"
 
 	def __init__(self, **kwargs):
 		"""
@@ -63,12 +64,13 @@ class Simulation():
 		acceptable_keys = (
 			"annual_growth",
 			"annual_yield",
-			"marginal_tax",
-			"interest_rate",
 			"deposit",
+			"interest_rate",
+			"loan_term",
 			"lvr",
-			"savings_per_month",
-			"loan_term")
+			"marginal_tax",
+			"method",
+			"savings_per_month")
 
 		for k in acceptable_keys:
 			if k in kwargs.keys():
@@ -81,7 +83,7 @@ class Simulation():
 		self.loan_balance = self.portfolio - self.deposit
 		self.original_loan_balance = self.loan_balance
 
-	def run(self, years, method="slm", display_interval=False):
+	def run(self, years, display_interval=False):
 		"""
 		Run a simulation.
 
@@ -101,10 +103,12 @@ class Simulation():
 		"""
 		periods = years * YEARS
 		self.display_interval = display_interval
-		if method.lower() == "slm":
+		if self.method.lower() == "slm":
 			iterate_func = self._iterate_slm
-		elif method.lower() == "hlm":
+		elif self.method.lower() == "hlm":
 			iterate_func = self._iterate_hlm
+		elif self.method.lower() == "io":
+			iterate_func = self._iterate_io
 		else:
 			raise ValueError("Valid methods are 'slm' or 'hlm'.")
 
@@ -128,6 +132,12 @@ class Simulation():
 		# print(fmt.format(period, ppmt, ipmt, self.loan_balance))
 
 		self._iterate(ppmt, ipmt, period)
+
+	def _iterate_io(self, period):
+		principal_repayment = 0
+		interest_repayment = self.loan_balance * self.interest_rate / YEARS
+
+		self._iterate(principal_repayment, interest_repayment, period)
 
 	def _iterate(self, principal_repayment, interest_repayment, period):
 		# Calculate divs
@@ -179,37 +189,51 @@ class Simulation():
 def example_simulation():
 	series = []
 
-	# Set parameters for all cases
+	# Set global parameters for all cases
 	Simulation.deposit = 20000
 	Simulation.savings_per_month = 600
 	Simulation.loan_term = 10
+	Simulation.method = "hlm"
+	Simulation.lvr = 0.66
 
-	# Run a base case with zero leverage (aka no loan at all)
-	base_case = Simulation(lvr=0.00, savings_per_month=300)
-	base_case.run(10)
-	base_result = base_case.portfolio
+	# Set a base case with zero leverage (aka no loan at all)
+	base_case = Simulation(lvr=0.00)
 
-	print(f"Baseline: ${base_result:,.0f}\n")
-
-	# Increasing LVR with same loan term
+	# Different LVRs with same loan term
 	series.append(Simulation(lvr=0.33))
 	series.append(Simulation(lvr=0.50))
 	series.append(Simulation(lvr=0.66))
 	series.append(Simulation(lvr=0.75))
 
-	# Longer loan terms
-	series.append(Simulation(lvr=0.50, loan_term=15))
-	series.append(Simulation(lvr=0.66, loan_term=15))
+	# Different loan calculation methods
+	series.append(Simulation(method="slm"))
+	series.append(Simulation(method="io"))
+
+	# Changing other parameters
+	series.append(Simulation(lvr=0.50, deposit=30000))
+	series.append(Simulation(lvr=0.55, savings_per_month=1000))
+	series.append(Simulation(lvr=0.62, loan_term=15))
+
+	return base_case, series
+
+def run_simulations(base_case, series, years=10):
+	# Run base case
+	base_case.run(years)
+	base_result = base_case.portfolio
+
+	print(f"Baseline: ${base_result:,.0f}\n")
 
 	# Run simulations
 	for i, s in enumerate(series):
-		s.run(10, "hlm", 0)
+		s.run(years, display_interval=121)
 
 		name = f"Series {string.ascii_uppercase[i]}"
 		result = s.portfolio - s.loan_balance
 		performance = (result * 100 / base_result) - 100
+		annualised = ((1 + performance / 100) ** (1 / years) - 1) * 100
 
-		print(f"{name}: ${result:,.0f} = outperformed baseline by {performance:.2f}% ({s.lvr*100:.0f}% LVR)")
+		print(f"{name}: ${result:,.0f} = {performance:+6.2f}% ({annualised:.2f}% p.a.) with {s.lvr*100:.0f}% LVR")
+
 
 if __name__ == '__main__':
-	example_simulation()
+	run_simulations(*example_simulation())
